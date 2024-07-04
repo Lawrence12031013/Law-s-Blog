@@ -14,11 +14,9 @@ from typing import List
 # Import your forms from the forms.py
 from forms import CreatePostForm, RegisterForm, LoginForm, CommentForm
 
-
 '''
 Make sure the required packages are installed: 
 Open the Terminal in PyCharm (bottom left). 
-
 On Windows type:
 python -m pip install -r requirements.txt
 
