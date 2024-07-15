@@ -1,6 +1,6 @@
 import os
 from datetime import date
-from flask import Flask, abort, render_template, redirect, url_for, flash, g, request
+from flask import Flask, abort, render_template, redirect, url_for, flash, g, request, send_from_directory
 from flask_bootstrap import Bootstrap5
 from flask_ckeditor import CKEditor
 from flask_gravatar import Gravatar
@@ -34,7 +34,6 @@ Bootstrap5(app)
 # TODO: Configure Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
-
 
 
 # CREATE DATABASE
