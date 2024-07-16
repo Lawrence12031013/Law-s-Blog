@@ -1,5 +1,6 @@
+{% from 'Bootstrap5/form.html' import render_form %}
+{% block content %}
 {% include "header.html" %}
-
 <!-- Page Header-->
 <header
   class="masthead"
@@ -9,11 +10,20 @@
     <div class="row gx-4 gx-lg-5 justify-content-center">
       <div class="col-md-10 col-lg-8 col-xl-7">
         <div class="page-heading">
-          {% if msg_sent: %}
-          <h1>Successfully sent your message</h1>
-          {% else: %}
-          <h1>Contact Me</h1>
-          {% endif %}
+<!--          {% if msg_sent: %}-->
+<!--          <h1>Successfully sent your message</h1>-->
+<!--          {% else: %}-->
+<!--          <h1>Contact Me</h1>-->
+<!--          {% endif %}-->
+            {% with messages = get_flashed_messages() %}
+              {% if messages %}
+                {% for message in messages %}
+                  <h2 class="text-success">{{ message }}</h2>
+                {% endfor %}
+              {% else: %}
+                  <h1>Contact Me</h1>
+              {% endif %}
+            {% endwith %}
           <span class="subheading">Have questions? I have answers.</span>
         </div>
       </div>
@@ -32,65 +42,7 @@
         <div class="my-5">
           <!-- * * * * * * * * * * * * * * *-->
           <!-- * * Simplified SB Contact Form for the Tutorial* *-->
-          <form
-            id="contactForm"
-            name="sentMessage"
-            action="{{ url_for('contact') }}"
-            method="post"
-          >
-            <div class="form-floating">
-              <input
-                class="form-control"
-                id="name"
-                name="name"
-                type="text"
-                placeholder="Enter your name..."
-                required
-              />
-              <label for="name">Name</label>
-            </div>
-            <div class="form-floating">
-              <input
-                class="form-control"
-                id="email"
-                name="email"
-                type="email"
-                placeholder="Enter your email..."
-                required
-              />
-              <label for="email">Email address</label>
-            </div>
-            <div class="form-floating">
-              <input
-                class="form-control"
-                id="phone"
-                name="phone"
-                type="tel"
-                placeholder="Enter your phone number..."
-                required
-              />
-              <label for="phone">Phone Number</label>
-            </div>
-            <div class="form-floating">
-              <textarea
-                class="form-control"
-                id="message"
-                name="message"
-                placeholder="Enter your message here..."
-                required
-                style="height: 12rem"
-              ></textarea>
-              <label for="message">Message</label>
-            </div>
-            <br />
-            <button
-              class="btn btn-danger text-uppercase"
-              id="submitButton"
-              type="submit"
-            >
-              NOT USED in Day 69
-            </button>
-          </form>
+           {{ render_form(form, novalidate=True, button_map={"submit": "primary"}) }}
         </div>
       </div>
     </div>
@@ -98,3 +50,4 @@
 </main>
 
 {% include "footer.html" %}
+{% endblock %}

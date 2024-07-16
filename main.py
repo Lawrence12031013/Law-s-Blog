@@ -1,18 +1,31 @@
 import os
 from datetime import date
-from flask import Flask, abort, render_template, redirect, url_for, flash, g, request, send_from_directory
+from functools import wraps
+from smtplib import SMTP
+from flask import Flask, abort, render_template, redirect, url_for, flash, request, send_from_directory
 from flask_bootstrap import Bootstrap5
-from flask_ckeditor import CKEditor
+from flask_ckeditor import CKEditor, upload_success, upload_fail
 from flask_gravatar import Gravatar
 from flask_login import UserMixin, login_user, LoginManager, current_user, logout_user
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import Integer, String, Text
 from sqlalchemy.orm import relationship, DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import Integer, String, Text, ForeignKey
-from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
-from typing import List
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.header import Header
+from dotenv import load_dotenv
+from flask_wtf import CSRFProtect
+
+# Load environment variables from .env
+load_dotenv()
+
+my_email = os.getenv('MY_EMAIL')
+email_password = os.getenv('EMAIL_PASSWORD')
+to_email = os.getenv('TO_EMAIL')
+
 # Import your forms from the forms.py
-from forms import CreatePostForm, RegisterForm, LoginForm, CommentForm
+from forms import CreatePostForm, RegisterForm, LoginForm, CommentForm, SendEmailForm
 
 '''
 Make sure the required packages are installed: 
@@ -26,9 +39,11 @@ pip3 install -r requirements.txt
 This will install the packages from the requirements.txt for this project.
 '''
 
+basedir = os.path.abspath(os.path.dirname(__file__))
+
+
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('FLASK_KEY')
-ckeditor = CKEditor(app)
+app.config['SECRET_KEY'] = os.environ.get('FLASK_KEY', 'default-secret-key')
 Bootstrap5(app)
 
 # TODO: Configure Flask-Login
@@ -36,10 +51,35 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 
 
+app.config['CKEDITOR_FILE_UPLOADER'] = 'upload'
+app.config['CKEDITOR_SERVE_LOCAL'] = True
+# app.config['CKEDITOR_ENABLE_CSRF'] = True
+app.config['UPLOAD_PATH'] = os.path.join(basedir, 'upload')
+
+ckeditor = CKEditor(app)
+# csrf = CSRFProtect(app)
+
+
+@app.route('/file/<path:filename>')
+def upload_files(filename):
+    path = app.config['UPLOAD_PATH']
+    return send_from_directory(path, filename)
+
+
+@app.route('/upload', methods=['POST'])
+def upload():
+    f = request.files.get('upload')
+    extension = f.filename.split('.')[-1].lower()
+    if extension not in ['jpg', 'png', 'gif', 'jpeg']:
+        return upload_fail(message='Only photos!')
+    f.save(os.path.join(app.config['UPLOAD_PATH'], f.filename))
+    url = url_for('upload_files', filename=f.filename)
+    return upload_success(url=url, filename=f.filename)
+
 # CREATE DATABASE
 class Base(DeclarativeBase):
     pass
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DB_URI", "sqlite:///posts.db")
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///posts.db', )
 db = SQLAlchemy(model_class=Base)
 db.init_app(app)
 
@@ -72,7 +112,7 @@ class User(UserMixin, db.Model):
 class Comment(db.Model):
     __tablename__ = "comments"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    text: Mapped[str] = mapped_column(Text, nullable=False)
+    text: Mapped[str] = mapped_column(String(500), nullable=False)
     author_id: Mapped[int] = mapped_column(Integer, db.ForeignKey("users.id"))
     comment_author = relationship('User', back_populates='comments')
     post_id: Mapped[int] = mapped_column(Integer, db.ForeignKey("blog_posts.id"))
@@ -248,6 +288,9 @@ def edit_post(post_id):
 @admin_only
 def delete_post(post_id):
     post_to_delete = db.get_or_404(BlogPost, post_id)
+    comments_to_delete = Comment.query.filter_by(post_id=post_id).all()
+    for comment in comments_to_delete:
+        db.session.delete(comment)
     db.session.delete(post_to_delete)
     db.session.commit()
     return redirect(url_for('get_all_posts'))
@@ -258,10 +301,49 @@ def about():
     return render_template("about.html")
 
 
-@app.route("/contact")
+@app.route("/contact", methods=['GET', 'POST'])
 def contact():
-    return render_template("contact.html")
+    form = SendEmailForm()
+    if form.validate_on_submit():
+        try:
+            Subject = f'郵件通知 {form.name.data}'
+            Subject = Header(Subject, 'utf-8').encode()
+            email = MIMEMultipart('mixed')
+            email['Subject'] = Subject
+            Html = """\
+                       <html>
+                          <head></head>
+                          <body>
+                              <h3>From: """ + form['name'].data + """</h3>
+                              <h3>Email: """ + form['email'].data + """</h3>
+                              <h3>Message: """ + form['message'].data + """</h3>
+                          </body>
+                       </html>
+                    """
+            message = MIMEText(Html, 'html', 'utf-8')
+            email.attach(message)
+
+            server = SMTP('smtp.gmail.com', 587)
+            server_res = server.ehlo()
+            print(f'res 1==> {server_res}')
+            smtp_ttls = server.starttls()
+            print(f'start tls ==> {smtp_ttls}')
+            smtp_login = server.login(user=my_email, password=email_password)
+            print(f'SMTP login ==> {smtp_login}')
+
+            server.sendmail(from_addr=my_email, to_addrs=to_email, msg=email.as_string())
+            server.quit()
+            flash(message='Email sent successfully!')
+            print('Email sent successfully')
+            return redirect(url_for("contact"))
+
+        except Exception as e:
+            print(f'Error sending email: {str(e)}')
+            flash(message='Email sent failed!')
+            return render_template("contact", error_message=str(e))  # Render an error page if something goes wrong
+
+    return render_template("contact.html", form=form)
 
 
 if __name__ == "__main__":
-    app.run(debug=False)
+    app.run(debug=True)
