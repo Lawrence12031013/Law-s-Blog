@@ -15,7 +15,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.header import Header
 from dotenv import load_dotenv
-from flask_wtf import CSRFProtect
+
 
 # Load environment variables from .env
 load_dotenv()
