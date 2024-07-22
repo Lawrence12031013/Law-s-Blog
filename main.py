@@ -15,6 +15,8 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.header import Header
 from dotenv import load_dotenv
+from http.server import BaseHTTPRequestHandler
+from os.path import join
 
 
 # Load environment variables from .env
@@ -117,6 +119,18 @@ class Comment(db.Model):
     comment_author = relationship('User', back_populates='comments')
     post_id: Mapped[int] = mapped_column(Integer, db.ForeignKey("blog_posts.id"))
     parent_post = relationship('BlogPost', back_populates='comments')
+
+
+class handler(BaseHTTPRequestHandler):
+
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/plain')
+        self.end_headers()
+        with open(join('data', 'file.txt'), 'r') as file:
+            for line in file:
+                self.wfile.write(line.encode())
+        return
 
 
 def admin_only(f):
