@@ -624,6 +624,11 @@ progress {
   color: #6c757d;
 }
 
+.container p img{
+    max-width:589px;
+    height: fit-content !important;
+}
+
 .container,
 .container-fluid,
 .container-xxl,
@@ -10677,6 +10682,10 @@ header.masthead {
   background-color: #6c757d;
   background-size: cover;
   background-attachment: scroll;
+  max-height: 534px;
+  display: flex;
+  justify-contain: center;
+  align-items: center;
 }
 header.masthead:before {
   content: "";
